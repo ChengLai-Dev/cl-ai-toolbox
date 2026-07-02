@@ -60,7 +60,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.debug.onDidChangeActiveStackItem(async (stackItem) => {
             if (stackItem && 'frameId' in stackItem) {
-                // 断点触发！
+                // 断点触发（有具体栈帧）！
                 debugSessionState.isPaused = true;
                 debugSessionState.breakpointHitCount++;
                 
@@ -80,8 +80,11 @@ export function activate(context: vscode.ExtensionContext) {
                     hitCount: debugSessionState.breakpointHitCount,
                     location: location
                 });
+            } else if (stackItem && 'threadId' in stackItem) {
+                // 用户在线程视图选择了某线程（未展开到栈帧），仍然暂停
+                debugSessionState.isPaused = true;
             } else {
-                // 程序继续运行
+                // stackItem 为 null/undefined → 程序真正恢复运行了
                 if (debugSessionState.isPaused) {
                     debugSessionState.isPaused = false;
                     broadcastSSE({
@@ -478,7 +481,39 @@ async function getCurrentLocation(): Promise<Response> {
         }
     }
 
-    // 如果没有 activeStackItem，说明程序可能正在运行
+    // activeStackItem 存在但没有 frameId（如线程级选择）或为 undefined
+    // 尝试直接通过 DAP 获取栈帧
+    try {
+        // 先获取线程
+        const threadResponse = await safeCustomRequest(session, 'threads', {}, 2000);
+        if (threadResponse.threads && threadResponse.threads.length > 0) {
+            // 取第一个暂停的线程
+            const threadId = threadResponse.threads[0].id;
+            const stackResponse = await safeCustomRequest(session, 'stackTrace', { 
+                threadId, 
+                startFrame: 0,
+                levels: 1 
+            }, 2000);
+            
+            if (stackResponse.stackFrames && stackResponse.stackFrames.length > 0) {
+                const frame = stackResponse.stackFrames[0];
+                return {
+                    success: true,
+                    location: {
+                        filePath: frame.source?.path || 'unknown',
+                        line: frame.line || 0,
+                        column: frame.column || 0
+                    },
+                    sessionName: session.name,
+                    sessionType: session.type,
+                    paused: true
+                };
+            }
+        }
+    } catch (err) {
+        // fallback 失败，说明程序可能正在运行
+    }
+
     return { 
         success: true, 
         sessionName: session.name, 
@@ -556,25 +591,49 @@ async function getCallStack(): Promise<Response> {
         return { success: false, error: '没有活跃的调试会话' };
     }
 
-    // 使用 activeStackItem API 获取当前栈帧
     const activeStackItem = vscode.debug.activeStackItem;
-    if (!activeStackItem || !('frameId' in activeStackItem)) {
-        return { success: false, error: '没有活跃的栈帧，程序可能正在运行' };
+
+    // 优先从 activeStackItem 获取栈帧信息
+    if (activeStackItem && 'frameId' in activeStackItem) {
+        try {
+            const stackFrame = activeStackItem as any;
+            const frameId = stackFrame.frameId;
+            const threadId = stackFrame.threadId;
+
+            if (!frameId || !threadId) {
+                return { success: false, error: '无法获取栈帧信息' };
+            }
+
+            // 先通过 scopes 请求验证栈帧是否有效
+            await safeCustomRequest(session, 'scopes', { frameId }, 2000);
+
+            const stackResponse = await safeCustomRequest(session, 'stackTrace', { 
+                threadId, 
+                startFrame: 0,
+                levels: 50 
+            }, 3000);
+
+            const callStack = stackResponse.stackFrames.map((frame: any) => ({
+                name: frame.name,
+                filePath: frame.source?.path || 'unknown',
+                line: frame.line,
+                column: frame.column
+            }));
+
+            return { success: true, callStack };
+        } catch (err) {
+            return { success: false, error: String(err) };
+        }
     }
 
+    // 没有 activeStackItem 或没有 frameId（异常断点等），回退到 DAP threads
     try {
-        const stackFrame = activeStackItem as any;
-        const frameId = stackFrame.frameId;
-        const threadId = stackFrame.threadId;
-
-        if (!frameId || !threadId) {
-            return { success: false, error: '无法获取栈帧信息' };
+        const threadResponse = await safeCustomRequest(session, 'threads', {}, 2000);
+        if (!threadResponse.threads || threadResponse.threads.length === 0) {
+            return { success: false, error: '没有活跃的线程，程序可能正在运行' };
         }
 
-        // 先通过 scopes 请求验证栈帧是否有效（这个请求比较安全）
-        await safeCustomRequest(session, 'scopes', { frameId }, 2000);
-
-        // 栈帧有效后再获取调用栈
+        const threadId = threadResponse.threads[0].id;
         const stackResponse = await safeCustomRequest(session, 'stackTrace', { 
             threadId, 
             startFrame: 0,

@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 from typing import Any, Dict, List, Optional
 from copy import deepcopy
 
@@ -75,15 +76,80 @@ def _read_doc(file_path: str) -> Dict:
         return {"success": False, "error": f"无法读取 .doc 文件（需要安装 pywin32 且系统需安装 Word）: {e}"}
 
 
+_IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tiff', '.tif', '.webp'}
+_IMAGE_MARKER_RE = re.compile(r'\{image:([^}]+)\}')
+
+
+def _parse_image_markers(text: str) -> list[dict]:
+    """解析段落中所有 {image:path} 标记，返回混合片段列表。
+    每段格式：{'type': 'text', 'text': str} 或 {'type': 'image', 'path': str}
+    若图片文件不存在，标记原样保留为文本。
+    """
+    segments = []
+    last_end = 0
+    for m in _IMAGE_MARKER_RE.finditer(text):
+        if m.start() > last_end:
+            segments.append({'type': 'text', 'text': text[last_end:m.start()]})
+        path = m.group(1).strip()
+        ext = os.path.splitext(path)[1].lower()
+        if ext in _IMAGE_EXTENSIONS and os.path.exists(path):
+            segments.append({'type': 'image', 'path': path})
+        else:
+            segments.append({'type': 'text', 'text': m.group(0)})
+        last_end = m.end()
+    if last_end < len(text):
+        segments.append({'type': 'text', 'text': text[last_end:]})
+    return segments
+
+
+def _build_paragraph(para_text: str, doc):
+    """根据段落文本构建段落，支持文本与 {image:path} 图片混合。"""
+    from docx.shared import Inches
+    segments = _parse_image_markers(para_text)
+    has_image = any(s['type'] == 'image' for s in segments)
+    if not has_image:
+        doc.add_paragraph(para_text)
+        return
+    p = doc.add_paragraph()
+    for seg in segments:
+        if seg['type'] == 'text':
+            p.add_run(seg['text'])
+        else:
+            p.add_run().add_picture(seg['path'], width=Inches(5.5))
+
+
 def _create_docx(file_path: str, paragraphs: List[str]) -> Dict:
     try:
         from docx import Document
         doc = Document()
         for para in paragraphs:
-            doc.add_paragraph(para)
+            _build_paragraph(para, doc)
         os.makedirs(os.path.dirname(os.path.abspath(file_path)), exist_ok=True)
         doc.save(file_path)
         return {"success": True, "message": f"文档已保存到: {file_path}", "path": file_path}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def _insert_image(file_path: str, image_path: str, paragraph_index: int = -1,
+                  width_inches: float = 5.5) -> Dict:
+    try:
+        ext = os.path.splitext(image_path)[1].lower()
+        if ext not in _IMAGE_EXTENSIONS or not os.path.exists(image_path):
+            return {"success": False, "error": f"图片文件不存在或格式不支持: {image_path}"}
+        from docx import Document
+        from docx.shared import Inches
+        doc = Document(file_path)
+        if paragraph_index >= 0 and paragraph_index < len(doc.paragraphs):
+            ref_p = doc.paragraphs[paragraph_index]
+            ref_p.add_run().add_picture(image_path, width=Inches(width_inches))
+            inserted_at = paragraph_index
+        else:
+            doc.add_picture(image_path, width=Inches(width_inches))
+            inserted_at = len(doc.paragraphs) - 1
+        doc.save(file_path)
+        return {"success": True, "message": f"图片已插入到位置 {inserted_at}",
+                "path": file_path, "inserted_at": inserted_at}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -212,12 +278,12 @@ async def list_tools() -> List[Tool]:
         ),
         Tool(
             name="create_docx",
-            description="创建一个新的 .docx 文件，写入指定段落文本",
+            description="创建一个新的 .docx 文件。若段落以 {image:路径} 格式标记则嵌入为图片，否则视为文本段落",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "file_path": {"type": "string", "description": "要创建的 .docx 文件路径"},
-                    "paragraphs": {"type": "array", "items": {"type": "string"}, "description": "段落文本列表"}
+                    "paragraphs": {"type": "array", "items": {"type": "string"}, "description": "段落列表。文本直接写字符串；若需要插入图片，用 {image:图片绝对路径} 格式标记"}
                 },
                 "required": ["file_path", "paragraphs"]
             }
@@ -285,6 +351,20 @@ async def list_tools() -> List[Tool]:
                     "text_contains": {"type": "string", "description": "删除包含此文本的所有段落（可选）"}
                 },
                 "required": ["file_path"]
+            }
+        ),
+        Tool(
+            name="insert_image",
+            description="向已有 .docx 文件的指定位置插入一张图片",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string", "description": ".docx 文件路径"},
+                    "image_path": {"type": "string", "description": "图片文件的绝对路径（支持 png/jpg/bmp/gif/tiff/webp）"},
+                    "paragraph_index": {"type": "integer", "description": "在此段落追加图片，-1 表示追加到末尾", "default": -1},
+                    "width_inches": {"type": "number", "description": "图片宽度（英寸），默认 5.5", "default": 5.5}
+                },
+                "required": ["file_path", "image_path"]
             }
         )
     ]
@@ -368,6 +448,18 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> List[TextContent]:
             result = {"success": False, "error": "请提供 indices 或 text_contains 参数"}
         else:
             result = _remove_paragraphs(file_path, indices, text_contains)
+
+    elif name == "insert_image":
+        file_path = arguments.get("file_path", "")
+        image_path = arguments.get("image_path", "")
+        paragraph_index = arguments.get("paragraph_index", -1)
+        width_inches = arguments.get("width_inches", 5.5)
+        if not file_path or not image_path:
+            result = {"success": False, "error": "file_path 和 image_path 不能为空"}
+        elif not os.path.exists(file_path):
+            result = {"success": False, "error": f"目标文档不存在: {file_path}"}
+        else:
+            result = _insert_image(file_path, image_path, paragraph_index, width_inches)
 
     else:
         result = {"success": False, "error": f"未知的工具: {name}"}

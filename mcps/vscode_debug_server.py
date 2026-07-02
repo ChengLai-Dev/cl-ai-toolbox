@@ -467,13 +467,18 @@ async def list_tools() -> List[Tool]:
         ),
         Tool(
             name="wait_next_hit",
-            description="等待下一个关心的断点命中。内部自动循环 continue，非 Watchlist 中的断点透明跳过，只对 Watchlist 中的断点返回。调试会话结束时也会通知",
+            description="等待下一个关心的断点命中。非 Watchlist 中的断点透明跳过。调试会话结束时也会通知",
             inputSchema={
                 "type": "object",
                 "properties": {
+                    "auto_continue": {
+                        "type": "boolean",
+                        "description": "进入等待前是否自动 continue（若程序暂停）。设为 false 表示当前已处于暂停状态，直接等待命中即可。默认 true",
+                        "default": True
+                    },
                     "timeout": {
                         "type": "number",
-                        "description": "总超时秒数（含内部 continue 循环），默认 60",
+                        "description": "总超时秒数（含内部循环），默认 60",
                         "default": 60
                     },
                     "auto_context": {
@@ -485,6 +490,7 @@ async def list_tools() -> List[Tool]:
                 "required": []
             }
         ),
+
         Tool(
             name="debug_control",
             description="控制调试流程：continue(继续), stepOver(单步跳过), stepInto(单步进入), stepOut(单步跳出), pause(暂停), restart(重启), stop(停止)",
@@ -682,9 +688,10 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> List[TextContent]:
     elif name == "wait_next_hit":
         timeout = arguments.get("timeout", 60)
         auto_context = arguments.get("auto_context", True)
+        auto_continue = arguments.get("auto_continue", True)
         
-        # 自动恢复执行（若暂停），然后等待下一命中
-        debug_client.debug_continue()
+        if auto_continue:
+            debug_client.debug_continue()
         
         with _watchlist_lock:
             if not watchlist:
