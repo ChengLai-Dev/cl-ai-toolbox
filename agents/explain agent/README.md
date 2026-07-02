@@ -1,6 +1,26 @@
-主要用于需要Agent给用户解释任何事物时
-解释场景对比：
-opencode内置agent Build vs Explain (model: DeepSeek V4 Flash Free)
+# Explain Agent
+
+专精于深度解释代码、概念和设计的 Agent。适用于内置 Agent 回答过于简略或表面时，需要深入理解"为什么"的场景。
+
+## 何时使用
+
+- 内置 Agent 回答太简短或太浅
+- 不仅想知道代码*做了什么*，还想理解*为什么*这样做
+- 需要设计权衡分析、实现原理或背景上下文
+- 学习代码库时，需要引导式、带示例的说明
+
+## 与内置 Agent 的对比
+
+| 方面     | 内置 Agent (Build) | Explain Agent               |
+|----------|--------------------|-----------------------------|
+| 回答风格 | 简洁直白           | 结构化、教程式              |
+| 深度     | 表面级             | 深入浅出，附示例            |
+| 结构     | 一段话搞定         | 分节、表格、示意图          |
+| 适用场景 | 快速问答、查命令   | 理解复杂逻辑                |
+
+## 对比示例
+Agent: Build vs Explain
+Model: DeepSeek V4 Flash Free
 
 用户提问：
 struct CollisionInfo {
