@@ -2,7 +2,7 @@
 
 ## GitHub Token
 
-1. **GITHUB_TOKEN=$env:GITHUB_TOKEN**
+1. **$env:GITHUB_TOKEN**
 
 ## opencode 全局配置
 
@@ -23,4 +23,5 @@
 
 - **文档路径**: `D:\Code\.config\opencode\agents\explain agent\Explain Docs\`
 - **图片路径**: `D:\Code\.config\opencode\agents\explain agent\Explain Pics\`
+- **脚本路径**: `D:\Code\.config\opencode\agents\explain agent\Explain Scripts\`
 
