@@ -379,7 +379,7 @@ async def list_tools() -> List[Tool]:
         ),
         Tool(
             name="set_breakpoints",
-            description="批量设置断点。每项可指定文件路径、行号、可选条件。只负责在 VSCode 中创建断点，不影响 Watchlist",
+            description="批量设置断点，自动标记为等待命中对象。设完后调 wait_next_hit 即可",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -439,52 +439,15 @@ async def list_tools() -> List[Tool]:
             }
         ),
         Tool(
-            name="watchlist_manage",
-            description="管理关心断点集（Watchlist）。控制 wait_next_hit 应等待哪些断点、透明跳过哪些。与断点设置解耦",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "action": {
-                        "type": "string",
-                        "description": "set=替换整个列表, add=追加, remove=移除指定, clear=清空, list=查看当前",
-                        "enum": ["set", "add", "remove", "clear", "list"]
-                    },
-                    "breakpoints": {
-                        "type": "array",
-                        "description": "set/add/remove 时使用，每项含 file_path 和 line",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "file_path": {"type": "string", "description": "文件绝对路径"},
-                                "line": {"type": "integer", "description": "行号"}
-                            },
-                            "required": ["file_path", "line"]
-                        }
-                    }
-                },
-                "required": ["action"]
-            }
-        ),
-        Tool(
             name="wait_next_hit",
-            description="等待下一个关心的断点命中。非 Watchlist 中的断点透明跳过。调试会话结束时也会通知",
+            description="等待 set_breakpoints 设置的断点命中。命中后自动返回上下文，无需额外步骤",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "auto_continue": {
-                        "type": "boolean",
-                        "description": "进入等待前是否自动 continue（若程序暂停）。设为 false 表示当前已处于暂停状态，直接等待命中即可。默认 true",
-                        "default": True
-                    },
                     "timeout": {
                         "type": "number",
-                        "description": "总超时秒数（含内部循环），默认 60",
+                        "description": "总超时秒数，默认 60",
                         "default": 60
-                    },
-                    "auto_context": {
-                        "type": "boolean",
-                        "description": "命中后是否自动获取完整上下文（位置+变量+调用栈），默认 true",
-                        "default": True
                     }
                 },
                 "required": []
@@ -598,22 +561,24 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> List[TextContent]:
             result = {"success": False, "error": "断点列表不能为空"}
         else:
             set_results = {"success": True, "breakpoints_set": [], "breakpoints_failed": []}
-            for bp in bps:
-                fp = bp.get("file_path", "")
-                ln = bp.get("line", 0)
-                cond = bp.get("condition")
-                if fp and ln:
-                    r = debug_client.set_breakpoint(fp, ln, cond)
-                    info = {"file_path": fp, "line": ln}
-                    if r.get("success"):
-                        set_results["breakpoints_set"].append(info)
+            with _watchlist_lock:
+                for bp in bps:
+                    fp = bp.get("file_path", "")
+                    ln = bp.get("line", 0)
+                    cond = bp.get("condition")
+                    if fp and ln:
+                        r = debug_client.set_breakpoint(fp, ln, cond)
+                        info = {"file_path": fp, "line": ln}
+                        if r.get("success"):
+                            set_results["breakpoints_set"].append(info)
+                            watchlist.setdefault(fp, set()).add(ln)
+                        else:
+                            info["error"] = r.get("error", "未知错误")
+                            set_results["breakpoints_failed"].append(info)
                     else:
-                        info["error"] = r.get("error", "未知错误")
-                        set_results["breakpoints_failed"].append(info)
-                else:
-                    set_results["breakpoints_failed"].append({
-                        "file_path": fp or "(空)", "line": ln, "error": "文件路径或行号无效"
-                    })
+                        set_results["breakpoints_failed"].append({
+                            "file_path": fp or "(空)", "line": ln, "error": "文件路径或行号无效"
+                        })
             set_results["summary"] = {
                 "total": len(bps),
                 "success": len(set_results["breakpoints_set"]),
@@ -629,85 +594,49 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> List[TextContent]:
             result = {"success": False, "error": "文件路径和行号为必填项"}
         else:
             result = debug_client.remove_breakpoint(file_path, line, include_manual)
+            if result.get("success"):
+                with _watchlist_lock:
+                    if file_path in watchlist:
+                        watchlist[file_path].discard(line)
+                        if not watchlist[file_path]:
+                            del watchlist[file_path]
     
     elif name == "remove_all_breakpoints":
         include_manual = arguments.get("include_manual", False)
         result = debug_client.remove_all_breakpoints(include_manual)
-    
-    # ========== Watchlist 管理 ==========
-    elif name == "watchlist_manage":
-        action = arguments.get("action", "list")
-        bps = arguments.get("breakpoints", [])
-        
-        with _watchlist_lock:
-            if action == "set":
+        if result.get("success"):
+            with _watchlist_lock:
                 watchlist.clear()
-                for bp in bps:
-                    fp, ln = bp.get("file_path", ""), bp.get("line", 0)
-                    if fp and ln:
-                        watchlist.setdefault(fp, set()).add(ln)
-                result = {"success": True, "action": "set", "count": len(bps)}
-            
-            elif action == "add":
-                added = 0
-                for bp in bps:
-                    fp, ln = bp.get("file_path", ""), bp.get("line", 0)
-                    if fp and ln:
-                        if ln not in watchlist.setdefault(fp, set()):
-                            watchlist[fp].add(ln)
-                            added += 1
-                result = {"success": True, "action": "add", "added": added}
-            
-            elif action == "remove":
-                removed = 0
-                for bp in bps:
-                    fp, ln = bp.get("file_path", ""), bp.get("line", 0)
-                    if fp and ln and fp in watchlist and ln in watchlist[fp]:
-                        watchlist[fp].discard(ln)
-                        if not watchlist[fp]:
-                            del watchlist[fp]
-                        removed += 1
-                result = {"success": True, "action": "remove", "removed": removed}
-            
-            elif action == "clear":
-                watchlist.clear()
-                result = {"success": True, "action": "clear"}
-            
-            elif action == "list":
-                result = {
-                    "success": True,
-                    "action": "list",
-                    "watchlist": {
-                        fp: sorted(list(lines)) for fp, lines in watchlist.items()
-                    }
-                }
-            else:
-                result = {"success": False, "error": f"未知操作: {action}"}
     
     # ========== 等待下一命中（核心） ==========
     elif name == "wait_next_hit":
         timeout = arguments.get("timeout", 60)
-        auto_context = arguments.get("auto_context", True)
-        auto_continue = arguments.get("auto_continue", True)
-        
-        if auto_continue:
-            debug_client.debug_continue()
         
         with _watchlist_lock:
             if not watchlist:
-                result = {"success": False, "error": "Watchlist 为空，请先调用 watchlist_manage 设置关心断点"}
+                result = {"success": False, "error": "没有注册关心的断点，请先调用 set_breakpoints"}
             else:
                 result = {}
         
-        if result:
-            pass  # 已设置错误结果
-        elif not sse_connected:
-            # 尝试启动 SSE 订阅
+        if not result and not sse_connected:
             sub_result = sse_client.start()
             if not sub_result.get("success"):
                 result = {"success": False, "error": "无法连接到断点事件推送，请确保调试会话已启动"}
         
         if not result:
+            # ① drain 队列：丢掉调用前积压的旧事件
+            while not breakpoint_event_queue.empty():
+                try:
+                    breakpoint_event_queue.get_nowait()
+                except queue.Empty:
+                    break
+            
+            # ② 检测是否已停在断点 → 先 continue 让程序跑起来
+            loc_result = debug_client.get_current_location()
+            if loc_result.get("paused"):
+                debug_client.debug_continue()
+            
+            # ③ 等待新事件
             deadline = time.time() + timeout
             hit_found = False
             session_ended = False
@@ -741,8 +670,7 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> List[TextContent]:
                         ln = loc.get('line', 0)
                         
                         if _in_watchlist(fp, ln):
-                            # 命中关心的断点
-                            ctx = _get_context() if auto_context else {}
+                            ctx = _get_context()
                             result = {
                                 "success": True,
                                 "hit": True,
@@ -753,12 +681,10 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> List[TextContent]:
                             hit_found = True
                             break
                         else:
-                            # 不关心的断点，透明跳过
                             debug_client.debug_continue()
                             continue
                     
                     elif etype == 'resumed':
-                        # 忽略 resumed 事件，继续等待
                         continue
                 
                 if not hit_found and not session_ended:
@@ -767,7 +693,7 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> List[TextContent]:
                         "hit": False,
                         "session_ended": False,
                         "timeout": True,
-                        "message": f"等待 {timeout} 秒后超时，未命中 Watchlist 中的断点"
+                        "message": f"等待 {timeout} 秒后超时"
                     }
             
             except Exception as e:

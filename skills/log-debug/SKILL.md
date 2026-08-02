@@ -1,6 +1,6 @@
 ---
 name: log-debug
-description: 日志调试技能。通过添加临时日志定位 Bug，日志使用 TEMP_LOG_DEBUG 前缀标识，排查完成后自动清理。当用户说"加日志查"、"打日志"等涉及日志排查时触发。
+description: 日志调试技能。通过添加临时日志定位 Bug，日志使用 [[TEMP_LOG_DEBUG]] 前缀标识，排查完成后自动清理。当用户说"加日志查"、"打日志"等涉及日志排查时触发。
 ---
 
 # 日志调试技能
@@ -12,15 +12,15 @@ description: 日志调试技能。通过添加临时日志定位 Bug，日志使
 临时调试日志统一使用以下格式：
 
 ```cpp
-Logger::Debug(std::format("TEMP_LOG_DEBUG <文件名>:<行号> <描述信息>"));
+Logger::Debug("[TEMP_LOG_DEBUG] <文件名>:<行号> <描述信息>");
 ```
 
 例：
 ```cpp
-Logger::Debug(std::format("TEMP_LOG_DEBUG ActivityPanel.cpp:96 panel_name={}", panel_name));
+Logger::Debug("[TEMP_LOG_DEBUG] ActivityPanel.cpp:96 panel_name={}", panel_name);
 ```
 
-`TEMP_LOG_DEBUG` 前缀用于：
+`[TEMP_LOG_DEBUG]` 前缀用于：
 - 与正常日志区分
 - 排查完成后全局搜索删除，防止遗漏
 
@@ -35,21 +35,21 @@ Logger::Debug(std::format("TEMP_LOG_DEBUG ActivityPanel.cpp:96 panel_name={}", p
 |-------|--------|
 | 1. 信息收集 | 理解 Bug 现象，定位相关代码 |
 | 2. 定位加日志位置 | 确定需要在哪些函数/分支添加日志 |
-| 3. 修改代码 | 在目标位置插入 `TEMP_LOG_DEBUG` 日志 |
+| 3. 修改代码 | 在目标位置插入 `[TEMP_LOG_DEBUG]` 日志 |
 | 4. 告知用户复现 | 说明如何触发 Bug，让用户运行并查看日志 |
 | 5. 分析日志 | 根据用户提供的信息或读取日志文件分析 |
 | 6. 决策 | 找到 Bug → Phase 7；需更多信息 → 回到 Phase 2 |
-| 7. 清理 | 搜索删除所有 `TEMP_LOG_DEBUG` 日志，**必须确认无残留** |
+| 7. 清理 | 搜索删除所有 `[TEMP_LOG_DEBUG]` 日志，**必须确认无残留** |
 
 ## 日志添加原则
 
 | 场景 | 推荐日志内容 |
 |------|-------------|
-| 函数入口 | `TEMP_LOG_DEBUG FuncName() called, param1={}` |
-| 条件分支 | `TEMP_LOG_DEBUG Condition check: x={}, y={}, result={}` |
-| 循环 | `TEMP_LOG_DEBUG Loop iter i={}, data={}`（条件断点对应场景） |
-| 数据处理点 | `TEMP_LOG_DEBUG ProcessData input={}, output={}` |
-| 返回值/错误 | `TEMP_LOG_DEBUG Return value={}` / `TEMP_LOG_DEBUG Error occurred: {}` |
+| 函数入口 | `[TEMP_LOG_DEBUG] FuncName() called, param1={}` |
+| 条件分支 | `[TEMP_LOG_DEBUG] Condition check: x={}, y={}, result={}` |
+| 循环 | `[TEMP_LOG_DEBUG] Loop iter i={}, data={}`（条件断点对应场景） |
+| 数据处理点 | `[TEMP_LOG_DEBUG] ProcessData input={}, output={}` |
+| 返回值/错误 | `[TEMP_LOG_DEBUG] Return value={}` / `[TEMP_LOG_DEBUG] Error occurred: {}` |
 
 **注意**：
 - 高频调用的函数（update/tick 等）必须加**频次限制**，如每 N 帧打印一次，或在特定状态时才打印
@@ -76,9 +76,9 @@ Phase 2-6 循环直到定位根因：
 
 找到 Bug 后必须清理临时日志：
 
-1. **搜索**：全局搜索 `TEMP_LOG_DEBUG` 确认所有临时日志位置
-2. **删除**：逐行移除 `Logger::Debug(std::format("TEMP_LOG_DEBUG"` 开头的代码行
-3. **确认**：再次搜索 `TEMP_LOG_DEBUG` 确认无残留
+1. **搜索**：全局搜索 `[TEMP_LOG_DEBUG]` 确认所有临时日志位置
+2. **删除**：逐行移除 `Logger::Debug(std::format("[TEMP_LOG_DEBUG]"` 开头的代码行
+3. **确认**：再次搜索 `[TEMP_LOG_DEBUG]` 确认无残留
 4. **编译验证**：确认删除后代码编译无误
 
 ## 输出报告

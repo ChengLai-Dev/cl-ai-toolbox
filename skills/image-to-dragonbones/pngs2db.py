@@ -9,10 +9,6 @@ from PIL import Image
 import numpy as np
 
 
-def _flip_y(y, canvas_h):
-    return canvas_h - y
-
-
 def find_bbox(img, threshold=30, min_row_px=3):
     """Find tight bounding box of non-transparent content.
     Filters isolated noise by requiring at least min_row_px pixels per row/col.
@@ -85,8 +81,8 @@ def make_tex_json(regions, atlas_w, atlas_h, image_path):
             'height': r['h'],
         }
         if r['frame_w'] > 0 and r['frame_h'] > 0:
-            sub['frameWidth'] = r['frame_w']
-            sub['frameHeight'] = r['frame_h']
+            sub['frameWidth'] = r['w']
+            sub['frameHeight'] = r['h']
         subs.append(sub)
     return {
         'name': osp.splitext(osp.basename(image_path))[0],
@@ -137,26 +133,36 @@ def make_ske_json(regions, canvas_w, canvas_h, part_names):
 
     sorted_parts = sorted(part_names, key=lambda n: name_to_idx[n])
 
-    slot_index = 0
+    cx = canvas_w / 2.0
+    cy = canvas_h / 2.0
+
+    bone_idx = 0
     for part_name in sorted_parts:
         r = [x for x in regions if x['name'] == part_name]
         if not r:
             continue
         r = r[0]
 
-        # position in DB coords (Y-up, origin at center of canvas)
-        cx = canvas_w / 2.0
-        cy = canvas_h / 2.0
+        bone_idx += 1
+        bone_name = f'bone_{part_name.replace(" ", "_")}'
+
         db_x = r['pivot_x'] - cx
-        db_y = _flip_y(r['pivot_y'], canvas_h) - _flip_y(cy, canvas_h)
-        # Actually simpler: DB y = canvas_h - pivot_y; center in DB = canvas_h/2
-        db_x = r['pivot_x'] - cx
-        db_y = canvas_h - r['pivot_y'] - (canvas_h - cy)
+        db_y = r['pivot_y'] - cy
+
+        bones.append({
+            'name': bone_name,
+            'parent': 'root',
+            'length': 0,
+            'transform': {
+                'x': round(db_x, 3),
+                'y': round(db_y, 3),
+            },
+        })
 
         slot_name = f'slot_{part_name.replace(" ", "_")}'
         slots.append({
             'name': slot_name,
-            'parent': 'root',
+            'parent': bone_name,
         })
 
         disp = {
@@ -164,10 +170,6 @@ def make_ske_json(regions, canvas_w, canvas_h, part_names):
             'type': 'image',
             'width': r['w'],
             'height': r['h'],
-            'transform': {
-                'x': round(db_x, 3),
-                'y': round(db_y, 3),
-            },
             'pivot': {
                 'x': round((r['pivot_x'] - r['frame_x']) / r['w'], 4) if r['w'] > 0 else 0.5,
                 'y': round(1.0 - (r['pivot_y'] - r['frame_y']) / r['h'], 4) if r['h'] > 0 else 0.5,
@@ -200,11 +202,15 @@ def make_ske_json(regions, canvas_w, canvas_h, part_names):
                 'playTimes': 0,
                 'bone': [
                     {
-                        'name': 'root',
+                        'name': b['name'],
                         'translateFrame': [
-                            {'duration': 1, 'tweenEasing': 0.0, 'x': 0, 'y': 0},
+                            {
+                                'duration': 1, 'tweenEasing': 0.0,
+                                'x': 0, 'y': 0,
+                            },
                         ],
-                    },
+                    }
+                    for b in bones
                 ],
                 'slot': [
                     {
