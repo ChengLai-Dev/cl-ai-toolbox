@@ -11,7 +11,7 @@
 
 1. **C++ 文件命名**：使用大驼峰（PascalCase），如 `Vec2.h`、`RawInput.cpp`、`PythonScriptApp.h`。
 2. **C++ 函数命名**：使用大驼峰（PascalCase），如 `GetInstance()`、`LoadTexture()`、`BeginScene()`。
-3. **Python 文件命名**：使用大驼峰（PascalCase），与 C++ 文件命名保持一致，如 `MenuScene.py`、`AiController.py`、`SpriteAnimator.py`。
+3. **Python 文件命名**：使用大驼峰（PascalCase），与 C++ 文件命名保持一致，如 `MenuScene.py`、`AIController.py`、`SpriteAnimator.py`。
 4. **Python 函数和成员变量命名**：使用小写下划线（snake_case），如 `on_init()`、`on_update()`、`take_damage()`、`move_speed`、`frame_count`。
 
 # 错误处理规则
