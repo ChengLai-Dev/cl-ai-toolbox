@@ -1,3 +1,9 @@
+---
+description: C++/Python 编码风格、命名规则、错误处理与可维护性规则
+alwaysApply: true
+enabled: true
+---
+
 # C++ 编码风格
 
 1. **谨慎使用 `auto`**：变量声明优先写出完整类型名。迭代器（iterator / const_iterator）或类型名较长的情况可以使用 `auto`。range-for 循环变量不是迭代器类型。

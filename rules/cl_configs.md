@@ -1,3 +1,9 @@
+---
+description: 环境与路径配置：GitHub Token、opencode 全局目录结构、各 Agent 产出目录
+alwaysApply: true
+enabled: true
+---
+
 # 配置规则
 
 ## GitHub Token
