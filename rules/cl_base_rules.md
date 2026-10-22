@@ -1,5 +1,5 @@
 ---
-description: 全局规则：语言约定、AI 行为准则、版本控制提交规范
+description: 全局规则：语言约定、AI 行为准则、Markdown 表格对齐、版本控制提交规范
 alwaysApply: true
 enabled: true
 ---

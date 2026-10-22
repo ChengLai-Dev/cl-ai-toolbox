@@ -27,6 +27,9 @@ enabled: true
 ### Agents
 - **路径**: `D:\Code\.config\opencode\agents\`
 
+### Scripts
+- **路径**: `D:\Code\.config\opencode\scripts\`
+
 
 ## Explain Agent（产出目录）
 
@@ -35,9 +38,13 @@ enabled: true
 - **脚本路径**: `D:\Code\.config\opencode\agents\explain agent\Explain Scripts\`
 
 
-## Web Finder（产出目录）
+## 统一目录（AI 落盘）
 
-- **下载目录**: `D:\Code\.config\opencode\agents\web-finder\downloads\`
+### 下载目录（所有 AI 下载）
+- **路径**: `D:\Code\downloads\`
+
+### 临时目录（AI 临时文件）
+- **路径**: `D:\Code\temp\`
 
 
 ## VSCode 扩展路径

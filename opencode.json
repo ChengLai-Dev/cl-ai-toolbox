@@ -1,0 +1,147 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "shell": "C:/Program Files/PowerShell/7/pwsh.exe",
+  "lsp": false,
+  // 临时禁用 CodeMode 的 execute 工具：它跑在自研的受限解释器里且「无超时」，
+  // 一旦被用来跑纯计算（如大规模蒙特卡洛）会一直卡住、占住整轮会话，只能按 Esc 中断。
+  // 详见 opencode issue #54340 / 修复 PR #54342（改用 bash + 真 Node 跑重计算）。
+  // TODO: 待官方合入 execute 的 stallMs / 超时修复后，删除下面 "execute":"deny" 这一行即可放开。
+  "permission": {
+    "*": "allow",
+    // v2 默认对这两项「安全护栏」问询，且不受 "*":"allow" 影响，故显式放行：
+    "external_directory": "allow", // 访问项目工作区之外的路径
+    "doom_loop": "allow",          // 同一工具调用连续 3 次完全相同的输入
+    "execute": "deny"
+  },
+  "skills": {
+    "paths": [
+      "D:\\Code\\.config\\opencode\\skills\\ai-game-sprite",
+      "D:\\Code\\.config\\opencode\\skills\\auto-debug",
+      "D:\\Code\\.config\\opencode\\skills\\code-clarity",
+      "D:\\Code\\.config\\opencode\\skills\\matt-pocock\\skills",
+      "D:\\Code\\.config\\opencode\\skills\\course-learning-suite",
+      "D:\\Code\\.config\\opencode\\skills\\explain-clearly",
+      "D:\\Code\\.config\\opencode\\skills\\log-debug",
+      "D:\\Code\\.config\\opencode\\skills\\ue-skills",
+      "C:\\Users\\Administrator\\AppData\\Roaming\\npm\\node_modules\\rea-agents\\skills"
+    ]
+  },
+  "agent": {
+    "web-finder": {
+      "description": "网络搜索与在线资源发现专家，通过 websearch/webfetch 多关键词并行搜索并交叉验证，查找网页/官方文档/软件下载/图片视频/教程/代码示例及解决方案，按匹配度排序返回可验证URL，必要时下载到 downloads/ 并校验。需联网获取实时信息、找官网/下载/最新资料时调用",
+      "mode": "all",
+      "prompt": "{file:./agents/web-finder/Web Finder.md}",
+      "permission": {
+        "edit": "deny"
+      }
+    },
+    "explain": {
+      "description": "教学专家，帮你深入理解任何概念，剖析理解偏差，结合案例和图解详细解释",
+      "mode": "primary",
+      "prompt": "{file:./agents/explain agent/Explain Agent.md}"
+    }
+  },
+  // game-studio 团队：1 个总控 + 7 个 subagent。用 V2 原生 agents 字段
+  // （与上面的 V1 agent 字段可共存，V2 同名项优先）。
+  // 除 game-studio 的派发白名单外不设 permissions：职责边界写在各自提示词里，由 agent 自行判断。
+  "agents": {
+    "game-studio": {
+      "description": "项目总控。澄清需求、拆解任务、派发给 game-designer/artist/programmer 与 reviewer-design/code/art/integration、验收并维护进度看板，用人话向用户汇报。",
+      "mode": "primary",
+      "system": "{file:./agents/game-studio/agents/game-studio.md}",
+      // 只允许派发下面 7 个角色，其余（general/explore/build 等）一律拒绝。
+      "permissions": [
+        { "action": "subagent", "resource": "*", "effect": "deny" },
+        { "action": "subagent", "resource": "game-designer", "effect": "allow" },
+        { "action": "subagent", "resource": "artist", "effect": "allow" },
+        { "action": "subagent", "resource": "programmer", "effect": "allow" },
+        { "action": "subagent", "resource": "reviewer-design", "effect": "allow" },
+        { "action": "subagent", "resource": "reviewer-code", "effect": "allow" },
+        { "action": "subagent", "resource": "reviewer-art", "effect": "allow" },
+        { "action": "subagent", "resource": "reviewer-integration", "effect": "allow" }
+      ]
+    },
+    "game-designer": {
+      "description": "策划。负责创意/玩法/数值/关卡/经济/文案，产出可被直接实现的策划案与数值表。由 game-studio 派活。",
+      "mode": "subagent",
+      "system": "{file:./agents/game-studio/agents/game-designer.md}"
+    },
+    "artist": {
+      "description": "美术。产出可直接进游戏的素材、制定美术规范、整理素材、核对授权。由 game-studio 派活。",
+      "mode": "subagent",
+      "system": "{file:./agents/game-studio/agents/artist.md}"
+    },
+    "programmer": {
+      "description": "程序。按项目既定技术栈实现玩法、界面、手感与存档，产出可运行的工程。由 game-studio 派活。",
+      "mode": "subagent",
+      "system": "{file:./agents/game-studio/agents/programmer.md}"
+    },
+    "reviewer-design": {
+      "description": "策划审查。只读审查策划案：公式可求值、字段名齐备、数值闭环、依赖项与状态名定义。由 game-studio 派活。",
+      "mode": "subagent",
+      "system": "{file:./agents/game-studio/agents/reviewer-design.md}"
+    },
+    "reviewer-code": {
+      "description": "工程审查。只读审查代码工程：能跑能玩、逻辑边界、字段与策划一致、结构命名与手感。由 game-studio 派活。",
+      "mode": "subagent",
+      "system": "{file:./agents/game-studio/agents/reviewer-code.md}"
+    },
+    "reviewer-art": {
+      "description": "素材审查。只读审查美术产出：规格/命名/风格统一/清单对账/朝向元信息。由 game-studio 派活。",
+      "mode": "subagent",
+      "system": "{file:./agents/game-studio/agents/reviewer-art.md}"
+    },
+    "reviewer-integration": {
+      "description": "接缝审查。只读比对策划声明、代码实现、素材实际三者的接缝（朝向、状态键、锚点、单位），专抓单看都对合起来错的问题。由 game-studio 派活。",
+      "mode": "subagent",
+      "system": "{file:./agents/game-studio/agents/reviewer-integration.md}"
+    }
+  },
+  "instructions": [
+    "D:\\Code\\.config\\opencode\\rules\\cl_base_rules.md",
+    "D:\\Code\\.config\\opencode\\rules\\cl_code_rules.md",
+    "D:\\Code\\.config\\opencode\\rules\\cl_configs.md",
+    "D:\\Code\\.config\\opencode\\rules\\cl_manim_video.md"
+  ],
+  "mcp": {
+    "vscode-debug": {
+      "type": "local",
+      "command": ["python", "D:\\Code\\.config\\opencode\\mcps\\vscode_debug_server.py"]
+    },
+    "doc-mcp": {
+      "type": "local",
+      "command": ["python", "D:\\Code\\.config\\opencode\\mcps\\doc_mcp_server.py"]
+    },
+    "excel-mcp": {
+      "type": "local",
+      "command": ["python", "D:\\Code\\.config\\opencode\\mcps\\excel_mcp_server.py"]
+    },
+    "video-to-frames": {
+      "type": "local",
+      "command": ["python", "D:\\Code\\.config\\opencode\\mcps\\video_to_frames_mcp.py"]
+    },
+    "unreal-mcp": {
+      "type": "local",
+      "command": ["python", "D:\\Code\\.config\\opencode\\mcps\\ue_mcp_bridge.py"]
+    },
+    // "rea": {
+    //   "type": "local",
+    //   "command": [
+    //     "D:\\Code\\tools\\node-v24.22.0-win-x64\\node.exe",
+    //     "C:\\Users\\Administrator\\AppData\\Roaming\\npm\\node_modules\\rea-agents\\scripts\\rea.mjs",
+    //     "mcp"
+    //   ],
+    //   "enabled": true,
+    //   "environment": {
+    //     "GHIDRA_INSTALL_DIR": "D:\\Code\\tools\\ghidra_12.1.4_PUBLIC",
+    //     "JAVA_HOME": "D:\\Code\\tools\\jdk21\\jdk21.0.12_12"
+    //   }
+    // }
+    // "rea": {
+    //   "type": "local",
+    //   "command": ["node", "C:\\Users\\Administrator\\AppData\\Roaming\\npm\\node_modules\\rea-agents\\scripts\\rea.mjs", "mcp"]
+    // }
+  },
+  // "model": "opencode-go/deepseek-v4-pro",
+  // "small_model": "opencode-go/deepseek-v4-flash"
+}

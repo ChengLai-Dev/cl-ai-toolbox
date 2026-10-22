@@ -22,7 +22,8 @@ enabled: true
 
 # 错误处理规则
 
-1. **禁止使用 try-catch / try-except**：任何情况下都不得使用 C++ 的 `try`/`catch` 和 Python 的 `try`/`except` 语句。通过返回值、错误码或传播异常（C++ 异常经 pybind11 自动转为 Python 异常）的方式处理错误。
+1. **用户项目代码禁止 try-catch / try-except**：在用户项目（用户拥有、要交付或维护的代码）中，不得使用 C++ 的 `try`/`catch` 和 Python 的 `try`/`except` 语句。通过返回值、错误码或传播异常（C++ 异常经 pybind11 自动转为 Python 异常）的方式处理错误。
+2. **非项目代码允许异常处理**：凡不属于用户项目的代码，例如 AI 自用的工具脚本、流程/自动化脚本、临时验证脚本等，均可自由使用 `try`/`catch`、`try`/`except` 等异常处理机制。判定标准是代码归属，而非语言或场景。
 
 # 可维护性规则
 

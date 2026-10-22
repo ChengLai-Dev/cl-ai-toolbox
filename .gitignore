@@ -1,0 +1,29 @@
+node_modules
+package.json
+package-lock.json
+bun.lock
+.gitignore
+
+# 本地路径 & 敏感配置
+opencode.json
+opencode.json.rea.backup
+opencode.json.rea.backup.*
+
+# Explain Agent 产出（仅跟踪目录本身，不跟踪内部文件）
+agents/explain agent/Explain Docs/*
+!agents/explain agent/Explain Docs/.gitkeep
+agents/explain agent/Explain Pics/*
+!agents/explain agent/Explain Pics/.gitkeep
+agents/explain agent/Explain Scripts/*
+!agents/explain agent/Explain Scripts/.gitkeep
+
+# Python 缓存
+mcps/__pycache__/
+
+# Web Finder 下载资源
+agents/web-finder/downloads/
+
+# VS Code 扩展构建产物
+vscode-extension/node_modules/
+vscode-extension/out/
+vscode-extension/*.vsix
