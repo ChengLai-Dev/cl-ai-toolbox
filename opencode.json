@@ -79,22 +79,22 @@
     "reviewer-design": {
       "description": "策划审查。只读审查策划案：公式可求值、字段名齐备、数值闭环、依赖项与状态名定义。由 game-studio 派活。",
       "mode": "subagent",
-      "system": "{file:./agents/game-studio/agents/reviewer-design.md}"
+      "system": "{file:./agents/game-studio/agents/reviewer-common.md}\n\n{file:./agents/game-studio/agents/reviewer-design.md}"
     },
     "reviewer-code": {
       "description": "工程审查。只读审查代码工程：能跑能玩、逻辑边界、字段与策划一致、结构命名与手感。由 game-studio 派活。",
       "mode": "subagent",
-      "system": "{file:./agents/game-studio/agents/reviewer-code.md}"
+      "system": "{file:./agents/game-studio/agents/reviewer-common.md}\n\n{file:./agents/game-studio/agents/reviewer-code.md}"
     },
     "reviewer-art": {
       "description": "素材审查。只读审查美术产出：规格/命名/风格统一/清单对账/朝向元信息。由 game-studio 派活。",
       "mode": "subagent",
-      "system": "{file:./agents/game-studio/agents/reviewer-art.md}"
+      "system": "{file:./agents/game-studio/agents/reviewer-common.md}\n\n{file:./agents/game-studio/agents/reviewer-art.md}"
     },
     "reviewer-integration": {
       "description": "接缝审查。只读比对策划声明、代码实现、素材实际三者的接缝（朝向、状态键、锚点、单位），专抓单看都对合起来错的问题。由 game-studio 派活。",
       "mode": "subagent",
-      "system": "{file:./agents/game-studio/agents/reviewer-integration.md}"
+      "system": "{file:./agents/game-studio/agents/reviewer-common.md}\n\n{file:./agents/game-studio/agents/reviewer-integration.md}"
     }
   },
   "instructions": [

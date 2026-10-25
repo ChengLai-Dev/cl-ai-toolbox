@@ -69,17 +69,66 @@ def loop_score(src, min_loop=16, tolerance=250, max_frames=64):
     return start, end, score, len(frames)
 
 
+def check_static(path):
+    """静态资源验收：尺寸、透明通道、接缝连续性。"""
+    path = Path(path)
+    image = Image.open(path)
+    print(f"file    : {path}")
+    print(f"size    : {image.size}  mode={image.mode}")
+
+    if image.mode == "RGBA":
+        alpha = np.asarray(image.getchannel("A"))
+        height, width = alpha.shape
+        corners = [int(alpha[0, 0]), int(alpha[0, width - 1]),
+                   int(alpha[height - 1, 0]), int(alpha[height - 1, width - 1])]
+        center = int(alpha[height // 2, width // 2])
+        transparent = float((alpha < 64).mean()) * 100
+        print(f"alpha   : corners={corners} center={center} transparent={transparent:.1f}%")
+        if max(corners) > 200:
+            print("         WARN 四角不透明，透明底可能没抠干净")
+    else:
+        print("alpha   : 无透明通道")
+
+    array = np.asarray(image.convert("RGB")).astype(np.float32)
+    vertical = float(np.abs(array[0] - array[-1]).mean())
+    horizontal = float(np.abs(array[:, 0] - array[:, -1]).mean())
+    interior = float(np.abs(np.diff(array, axis=0)).mean())
+    print(f"seam    : v={vertical:.2f} h={horizontal:.2f}  内部相邻行差={interior:.2f}")
+    verdict = "不比纹理粗糙 -> 无缝" if vertical <= interior * 1.3 else "比纹理粗糙 -> 有缝"
+    print(f"          {verdict}")
+
+    cell = 8 if max(image.size) <= 512 else 16
+    board = checkerboard(image.size, cell)
+    board.paste(image.convert("RGBA") if image.mode == "RGBA" else image.convert("RGB"),
+                (0, 0), image if image.mode == "RGBA" else None)
+    # 预览图放 pipeline 的 assets 下，不进 game/，免得被 Godot 导入
+    out_dir = PIPELINE_ROOT / "assets" / "_postproc"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out = out_dir / (path.stem + "_preview.png")
+    board.save(out)
+    print(f"preview : {out}")
+
+
 def main():
-    parser = argparse.ArgumentParser(description="序列帧验收：gif 预览 + 循环闭合指标")
-    parser.add_argument("sprite_dir", help="game/assets/sprites/<角色> 目录")
+    parser = argparse.ArgumentParser(description="验收：序列帧 gif + 循环闭合指标 / 静态资源检查")
+    parser.add_argument("sprite_dir", nargs="?", default=None,
+                        help="game/assets/sprites/<角色> 目录")
     parser.add_argument("--action", default="walk")
     parser.add_argument("--fps", type=int, default=10)
     parser.add_argument("--out", default=None, help="gif 输出路径")
     parser.add_argument("--src", default=None,
                         help="原始视频帧目录，额外计算循环区间 iou")
+    parser.add_argument("--static", default=None,
+                        help="静态资源 PNG，检查尺寸/透明通道/接缝并输出棋盘底预览")
     parser.add_argument("--min-loop", type=int, default=16)
     parser.add_argument("--tolerance", type=int, default=250)
     args = parser.parse_args()
+
+    if args.static:
+        check_static(args.static)
+        return
+    if not args.sprite_dir:
+        raise SystemExit("需要 sprite_dir 目录，或用 --static 指定一张静态资源图")
 
     sprite_dir = Path(args.sprite_dir)
     frames_dir = sprite_dir / "frames" / args.action
@@ -102,7 +151,9 @@ def main():
         canvas.paste(frame, (0, 0), frame)
         rendered.append(canvas)
 
-    out = Path(args.out) if args.out else sprite_dir / f"preview_{args.action}.gif"
+    # 预览 gif 放 pipeline 的 assets 下，不进 game/，免得被 Godot 导入
+    out = Path(args.out) if args.out else (
+        PIPELINE_ROOT / "assets" / "_postproc" / f"{sprite_dir.name}_{args.action}.gif")
     out.parent.mkdir(parents=True, exist_ok=True)
     rendered[0].save(
         out,

@@ -76,7 +76,8 @@ def main():
     print("=== 流水线 ===")
     check_file(PIPELINE_ROOT, "pipeline root")
     for name in ("run_pipeline.py", "gen_look.py", "run_wan_a14b.py", "import_frames.py",
-                 "pack_atlas.py", "make_control.py", "device_scheduler.py"):
+                 "pack_atlas.py", "make_control.py", "device_scheduler.py",
+                 "post_process.py", "prep_source.py", "comfy_client.py", "comfy_ctl.py"):
         check_file(PIPELINE_ROOT / "pipeline" / name, name)
 
     print("\n=== Z-Image 模型 ===")
@@ -99,6 +100,14 @@ def main():
 
     running = check_comfy_running()
     print(f"{mark(running)} ComfyUI service: {'running' if running else 'not running (run_comfyui.bat)'}")
+
+    print("\n=== 后处理模型（静态资源模式用）===")
+    check_file(COMFY_DIR / "models" / "background_removal" / "birefnet.safetensors",
+               "birefnet (BiRefNet, MIT)")
+    check_file(COMFY_DIR / "models" / "background_removal" / "lucida.safetensors",
+               "lucida (BiRefNet 插画版, 可选)")
+    check_file(COMFY_DIR / "models" / "upscale_models" / "4x-UltraSharp.pth",
+               "4x-UltraSharp (ESRGAN, BSD-3)")
 
     print("\n=== 引擎 ===")
     check_file(GODOT, "godot")

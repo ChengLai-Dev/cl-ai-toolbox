@@ -17,6 +17,9 @@ agents/explain agent/Explain Pics/*
 agents/explain agent/Explain Scripts/*
 !agents/explain agent/Explain Scripts/.gitkeep
 
+# Skill 文档本地快照（历史由 git 管理）
+skills/*/_backup/
+
 # Python 缓存
 mcps/__pycache__/
 
