@@ -8,6 +8,7 @@ bun.lock
 opencode.json
 opencode.json.rea.backup
 opencode.json.rea.backup.*
+opencode.json.bak-*
 
 # Explain Agent 产出（仅跟踪目录本身，不跟踪内部文件）
 agents/explain agent/Explain Docs/*

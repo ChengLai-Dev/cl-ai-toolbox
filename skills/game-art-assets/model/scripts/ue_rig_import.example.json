@@ -1,0 +1,16 @@
+{
+  "fbx": "D:/Code/UE Projects/DecayZone/Content/Assets/_Source/Player/Adventurer2_fixed.fbx",
+  "dest": "/Game/Assets/Player",
+  "mesh_name": "SK_Adventurer",
+  "skeleton_name": "SK_Adventurer_Skeleton",
+  "physics_name": "SK_Adventurer_PhysicsAsset",
+  "anim_prefix": "AS_",
+  "anim_suffixes": [
+    "HitRecieve_2", "Idle_Gun_Pointing", "Idle_Gun_Shoot", "Idle_Neutral",
+    "Idle_Sword", "Idle_Gun", "Run_Shoot", "Run_Back", "Run_Left", "Run_Right",
+    "Sword_Slash", "Punch_Left", "Punch_Right", "Kick_Left", "Kick_Right",
+    "Gun_Shoot", "HitRecieve", "Interact", "Death", "Idle", "Roll", "Walk",
+    "Wave", "Run"
+  ],
+  "check_bones": ["LowerLeg_L", "Foot_L", "PT_L", "LowerLeg_R", "Foot_R", "PT_R"]
+}

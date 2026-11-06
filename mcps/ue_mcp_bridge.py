@@ -62,8 +62,8 @@ JSONRPC_INTERNAL_ERROR = -32603
 
 STARTUP_HINT = (
     "无法连接 UE 编辑器 MCP 服务器。请依次确认：\n"
-    "  1. 编辑器已启动（项目：Warden）\n"
-    "  2. Warden.uproject 中已启用 ModelContextProtocol 插件\n"
+    "  1. 编辑器已启动（目标项目）\n"
+    "  2. 项目 .uproject 中已启用 ModelContextProtocol 插件\n"
     "  3. Config/DefaultEditorPerProjectUserSettings.ini 里 bAutoStartServer=True\n"
     "  4. 编辑器 Output Log 里搜 'Starting MCP server on port' 确认已监听\n"
     "  5. 端口未被占用（一次只能开一个编辑器实例）"
@@ -301,6 +301,20 @@ def establish_session(client, server_url):
     return returned_session_id
 
 
+def is_stale_session_response(response):
+    """判断是否因为会话被上游作废而失败。
+
+    编辑器重启会让旧会话失效，上游返回 HTTP 200 + JSON-RPC error
+    （message 形如 "Unknown session id '...'；client should reinitialize"），
+    而不是规范建议的 404。若不识别这种情况，桥接会把失效会话一直用到
+    进程结束，表现为每次调用都失败。
+    """
+    if response.status_code != httpx.codes.OK:
+        return False
+
+    return "Unknown session id" in response.text
+
+
 def handle_http_result(response):
     """把 HTTP 应答转换成要写回 stdout 的行（可能多行，也可能零行）。"""
     # 202 = 已接受的通知，按协议不得回复任何内容。
@@ -396,6 +410,37 @@ def main():
                 )
             )
             continue
+
+        # 编辑器重启后旧会话会失效，上游用 200 + JSON-RPC error 报告，
+        # 这里重建会话并重试一次，否则后续每个请求都会失败。
+        if session_id is not None and is_stale_session_response(response):
+            write_stderr("会话已失效（Unknown session id），重建会话后重试")
+            session_id = establish_session(client, server_url)
+
+            retry_headers = {"Content-Type": "application/json"}
+            if session_id is not None:
+                retry_headers["Mcp-Session-Id"] = session_id
+
+            try:
+                response = client.post(
+                    server_url,
+                    content=raw_message.encode("utf-8"),
+                    headers=retry_headers,
+                )
+            except httpx.HTTPError as error:
+                detail = f"{type(error).__name__}: {error}"
+                write_stderr(f"重试失败（{detail}）")
+                session_id = None
+
+                if request_id is not None:
+                    write_message(
+                        build_error_response(
+                            request_id,
+                            JSONRPC_INTERNAL_ERROR,
+                            f"UE 编辑器 MCP 服务器不可达（{detail}）",
+                        )
+                    )
+                continue
 
         announced_failure = False
 

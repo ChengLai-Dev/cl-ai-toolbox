@@ -2,10 +2,14 @@
   "$schema": "https://opencode.ai/config.json",
   "shell": "C:/Program Files/PowerShell/7/pwsh.exe",
   "lsp": false,
-  // 临时禁用 CodeMode 的 execute 工具：它跑在自研的受限解释器里且「无超时」，
-  // 一旦被用来跑纯计算（如大规模蒙特卡洛）会一直卡住、占住整轮会话，只能按 Esc 中断。
-  // 详见 opencode issue #54340 / 修复 PR #54342（改用 bash + 真 Node 跑重计算）。
-  // TODO: 待官方合入 execute 的 stallMs / 超时修复后，删除下面 "execute":"deny" 这一行即可放开。
+  // 临时禁用 CodeMode 的 execute 工具：它跑在自研的受限解释器里，且没有 wall-clock 超时
+  // 其中 ExecutionLimits.timeoutMs 缺省即无超时，一旦用来跑纯计算（如大规模蒙特卡洛）就会
+  // 一直卡住、占住整轮会话，只能按 Esc 中断。重计算请改用 shell + 真 Node。
+  // 跟踪 issue #54220（execute 无超时，截至 v2.2.5 仍 Open）。
+  // 已修的是「await 永不 settle」的死锁型卡住（#54340，由 #57976 + #59749 在 v2.2.1 解决），
+  // 但该 stall 检测只在「无排队 job 且无 in-flight 调用」时触发，忙循环不会命中；
+  // 曾提议的 #54342 未合并，别按它判断能否放开。
+  // TODO: 待 #54220 落地「execute 传入默认 timeoutMs」后，删除下面 "execute":"deny" 即可放开。
   "permission": {
     "*": "allow",
     // v2 默认对这两项「安全护栏」问询，且不受 "*":"allow" 影响，故显式放行：
@@ -19,11 +23,13 @@
       "D:\\Code\\.config\\opencode\\skills\\auto-debug",
       "D:\\Code\\.config\\opencode\\skills\\code-clarity",
       "D:\\Code\\.config\\opencode\\skills\\matt-pocock\\skills",
-      "D:\\Code\\.config\\opencode\\skills\\course-learning-suite",
+      // "D:\\Code\\.config\\opencode\\skills\\course-learning-suite",
       "D:\\Code\\.config\\opencode\\skills\\explain-clearly",
+      "D:\\Code\\.config\\opencode\\skills\\game-art-assets",
       "D:\\Code\\.config\\opencode\\skills\\log-debug",
-      "D:\\Code\\.config\\opencode\\skills\\ue-skills",
-      "C:\\Users\\Administrator\\AppData\\Roaming\\npm\\node_modules\\rea-agents\\skills"
+      "D:\\Code\\.config\\opencode\\skills\\fast-download",
+      "D:\\Code\\.config\\opencode\\skills\\ue-skills"
+      // "C:\\Users\\Administrator\\AppData\\Roaming\\npm\\node_modules\\rea-agents\\skills"
     ]
   },
   "agent": {
@@ -35,11 +41,11 @@
         "edit": "deny"
       }
     },
-    "explain": {
-      "description": "教学专家，帮你深入理解任何概念，剖析理解偏差，结合案例和图解详细解释",
-      "mode": "primary",
-      "prompt": "{file:./agents/explain agent/Explain Agent.md}"
-    }
+    // "explain": {
+    //   "description": "教学专家，帮你深入理解任何概念，剖析理解偏差，结合案例和图解详细解释",
+    //   "mode": "primary",
+    //   "prompt": "{file:./agents/explain agent/Explain Agent.md}"
+    // }
   },
   // game-studio 团队：1 个总控 + 7 个 subagent。用 V2 原生 agents 字段
   // （与上面的 V1 agent 字段可共存，V2 同名项优先）。
