@@ -36,7 +36,7 @@
     "web-finder": {
       "description": "网络搜索与在线资源发现专家，通过 websearch/webfetch 多关键词并行搜索并交叉验证，查找网页/官方文档/软件下载/图片视频/教程/代码示例及解决方案，按匹配度排序返回可验证URL，必要时下载到 downloads/ 并校验。需联网获取实时信息、找官网/下载/最新资料时调用",
       "mode": "all",
-      "prompt": "{file:./agents/web-finder/Web Finder.md}",
+      "prompt": "{file:./roles/web-finder/Web Finder.md}",
       "permission": {
         "edit": "deny"
       }
@@ -44,7 +44,7 @@
     // "explain": {
     //   "description": "教学专家，帮你深入理解任何概念，剖析理解偏差，结合案例和图解详细解释",
     //   "mode": "primary",
-    //   "prompt": "{file:./agents/explain agent/Explain Agent.md}"
+    //   "prompt": "{file:./roles/explain agent/Explain Agent.md}"
     // }
   },
   // game-studio 团队：1 个总控 + 7 个 subagent。用 V2 原生 agents 字段
@@ -54,7 +54,7 @@
     "game-studio": {
       "description": "项目总控。澄清需求、拆解任务、派发给 game-designer/artist/programmer 与 reviewer-design/code/art/integration、验收并维护进度看板，用人话向用户汇报。",
       "mode": "primary",
-      "system": "{file:./agents/game-studio/agents/game-studio.md}",
+      "system": "{file:./roles/game-studio/game-studio.md}",
       // 只允许派发下面 7 个角色，其余（general/explore/build 等）一律拒绝。
       "permissions": [
         { "action": "subagent", "resource": "*", "effect": "deny" },
@@ -70,37 +70,66 @@
     "game-designer": {
       "description": "策划。负责创意/玩法/数值/关卡/经济/文案，产出可被直接实现的策划案与数值表。由 game-studio 派活。",
       "mode": "subagent",
-      "system": "{file:./agents/game-studio/agents/game-designer.md}"
+      "system": "{file:./roles/game-studio/game-designer.md}"
     },
     "artist": {
       "description": "美术。产出可直接进游戏的素材、制定美术规范、整理素材、核对授权。由 game-studio 派活。",
       "mode": "subagent",
-      "system": "{file:./agents/game-studio/agents/artist.md}"
+      "system": "{file:./roles/game-studio/artist.md}"
     },
     "programmer": {
       "description": "程序。按项目既定技术栈实现玩法、界面、手感与存档，产出可运行的工程。由 game-studio 派活。",
       "mode": "subagent",
-      "system": "{file:./agents/game-studio/agents/programmer.md}"
+      "system": "{file:./roles/game-studio/programmer.md}"
     },
     "reviewer-design": {
       "description": "策划审查。只读审查策划案：公式可求值、字段名齐备、数值闭环、依赖项与状态名定义。由 game-studio 派活。",
       "mode": "subagent",
-      "system": "{file:./agents/game-studio/agents/reviewer-common.md}\n\n{file:./agents/game-studio/agents/reviewer-design.md}"
+      "system": "{file:./roles/game-studio/reviewer-common.md}\n\n{file:./roles/game-studio/reviewer-design.md}"
     },
     "reviewer-code": {
       "description": "工程审查。只读审查代码工程：能跑能玩、逻辑边界、字段与策划一致、结构命名与手感。由 game-studio 派活。",
       "mode": "subagent",
-      "system": "{file:./agents/game-studio/agents/reviewer-common.md}\n\n{file:./agents/game-studio/agents/reviewer-code.md}"
+      "system": "{file:./roles/game-studio/reviewer-common.md}\n\n{file:./roles/game-studio/reviewer-code.md}"
     },
     "reviewer-art": {
       "description": "素材审查。只读审查美术产出：规格/命名/风格统一/清单对账/朝向元信息。由 game-studio 派活。",
       "mode": "subagent",
-      "system": "{file:./agents/game-studio/agents/reviewer-common.md}\n\n{file:./agents/game-studio/agents/reviewer-art.md}"
+      "system": "{file:./roles/game-studio/reviewer-common.md}\n\n{file:./roles/game-studio/reviewer-art.md}"
     },
     "reviewer-integration": {
       "description": "接缝审查。只读比对策划声明、代码实现、素材实际三者的接缝（朝向、状态键、锚点、单位），专抓单看都对合起来错的问题。由 game-studio 派活。",
       "mode": "subagent",
-      "system": "{file:./agents/game-studio/agents/reviewer-common.md}\n\n{file:./agents/game-studio/agents/reviewer-integration.md}"
+      "system": "{file:./roles/game-studio/reviewer-common.md}\n\n{file:./roles/game-studio/reviewer-integration.md}"
+    },
+    // app-studio 团队：1 个总控经理 + 3 个 subagent（策划 / 程序 / reviewer）。
+    // 轻流程：子 agent 做完写一份交接文档到 docs/handoffs/，由总控安排与验收。
+    "app-studio": {
+      "description": "应用项目总控经理。与用户对接、澄清需求、拆活、派发给 app-designer/app-programmer/app-reviewer，读交接文档验收并向用户汇报。",
+      "mode": "primary",
+      "system": "{file:./roles/app-studio/app-studio.md}",
+      // 只允许派发下面 3 个角色，其余（general/explore/build 等）一律拒绝。
+      "permissions": [
+        { "action": "subagent", "resource": "*", "effect": "deny" },
+        { "action": "subagent", "resource": "app-designer", "effect": "allow" },
+        { "action": "subagent", "resource": "app-programmer", "effect": "allow" },
+        { "action": "subagent", "resource": "app-reviewer", "effect": "allow" }
+      ]
+    },
+    "app-designer": {
+      "description": "应用策划。负责需求、流程、页面、字段、验收标准与文案，产出程序员能直接实现的需求文档，做完写交接文档。由 app-studio 派活。",
+      "mode": "subagent",
+      "system": "{file:./roles/app-studio/app-designer.md}"
+    },
+    "app-programmer": {
+      "description": "应用程序。按既定技术栈实现功能、界面与数据对接，产出可运行工程，做完写交接文档。由 app-studio 派活。",
+      "mode": "subagent",
+      "system": "{file:./roles/app-studio/app-programmer.md}"
+    },
+    "app-reviewer": {
+      "description": "应用审查。只读审查需求、代码与两者接缝：可判定性、字段一致、边界与安全、能否跑通，只提问题不动手修。由 app-studio 派活。",
+      "mode": "subagent",
+      "system": "{file:./roles/app-studio/app-reviewer.md}"
     }
   },
   "instructions": [

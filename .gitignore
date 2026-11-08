@@ -9,14 +9,21 @@ opencode.json
 opencode.json.rea.backup
 opencode.json.rea.backup.*
 opencode.json.bak-*
+opencode.json.jsonc-original-*
+opencode.json.plexus-backup-*
+cli.json
+service.json
+
+# Office 临时锁文件
+~$*
 
 # Explain Agent 产出（仅跟踪目录本身，不跟踪内部文件）
-agents/explain agent/Explain Docs/*
-!agents/explain agent/Explain Docs/.gitkeep
-agents/explain agent/Explain Pics/*
-!agents/explain agent/Explain Pics/.gitkeep
-agents/explain agent/Explain Scripts/*
-!agents/explain agent/Explain Scripts/.gitkeep
+roles/explain agent/Explain Docs/*
+!roles/explain agent/Explain Docs/.gitkeep
+roles/explain agent/Explain Pics/*
+!roles/explain agent/Explain Pics/.gitkeep
+roles/explain agent/Explain Scripts/*
+!roles/explain agent/Explain Scripts/.gitkeep
 
 # Skill 文档本地快照（历史由 git 管理）
 skills/*/_backup/
@@ -25,7 +32,7 @@ skills/*/_backup/
 mcps/__pycache__/
 
 # Web Finder 下载资源
-agents/web-finder/downloads/
+roles/web-finder/downloads/
 
 # VS Code 扩展构建产物
 vscode-extension/node_modules/

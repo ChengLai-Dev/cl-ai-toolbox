@@ -178,7 +178,7 @@ AABB 有一个重要约束：始终保证 min.x ≤ max.x 且 min.y ≤ max.y。
 
 你提供的 AABB struct 对应的几何概念，都在下面的三子图中展示。请查看本地保存的图片文件：
 
-图片路径：`D:\Code\.config\opencode\agents\explain agent\Explain Pics\aabb_explanation.png`
+图片路径：`D:\Code\.config\opencode\roles\explain agent\Explain Pics\aabb_explanation.png`
 
 | 图中元素 | 对应概念 |
 |----------|---------|
@@ -252,8 +252,8 @@ AABB 是用两个对角顶点（min/max）定义、边与坐标轴平行的矩�
 - 对比：如果改用 center + halfSize 表示法重写 Combine，体会为什么 min/max 更简洁
 
 本地备份文件：
-- 图片：`D:\Code\.config\opencode\agents\explain agent\Explain Pics\aabb_explanation.png`
-- 文档：`D:\Code\.config\opencode\agents\explain agent\Explain Docs\AABB 轴对齐包围盒解释.docx`
+- 图片：`D:\Code\.config\opencode\roles\explain agent\Explain Pics\aabb_explanation.png`
+- 文档：`D:\Code\.config\opencode\roles\explain agent\Explain Docs\AABB 轴对齐包围盒解释.docx`
 
 ### 文档内容展示：
 AABB（Axis-Aligned Bounding Box，轴对齐包围盒）概念图解

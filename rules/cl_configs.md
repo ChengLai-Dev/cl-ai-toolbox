@@ -24,8 +24,9 @@ enabled: true
 ### MCP
 - **路径**: `D:\Code\.config\opencode\mcps\`
 
-### Agents
-- **路径**: `D:\Code\.config\opencode\agents\`
+### Roles
+- **路径**: `D:\Code\.config\opencode\roles\`
+- 注意：目录名不能叫 `agents` / `agent` / `mode` / `modes`，这四个都会被 OpenCode 当成 agent 定义扫描进去。
 
 ### Scripts
 - **路径**: `D:\Code\.config\opencode\scripts\`
@@ -33,9 +34,9 @@ enabled: true
 
 ## Explain Agent（产出目录）
 
-- **文档路径**: `D:\Code\.config\opencode\agents\explain agent\Explain Docs\`
-- **图片路径**: `D:\Code\.config\opencode\agents\explain agent\Explain Pics\`
-- **脚本路径**: `D:\Code\.config\opencode\agents\explain agent\Explain Scripts\`
+- **文档路径**: `D:\Code\.config\opencode\roles\explain agent\Explain Docs\`
+- **图片路径**: `D:\Code\.config\opencode\roles\explain agent\Explain Pics\`
+- **脚本路径**: `D:\Code\.config\opencode\roles\explain agent\Explain Scripts\`
 
 
 ## 统一目录（AI 落盘）
